@@ -19,7 +19,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         add_group_url = f"https://t.me/{bot_username}?startgroup=botstart"
     
     # Direct group link
-    direct_group_url = "https://t.me/last_promise_chatting_212"
+    direct_group_url = "https://t.me/Titanic_world_chatting_zonee"
     
     welcome_text = (
         "🎯 *Message Self-Destruct Bot*\n\n"
