@@ -303,8 +303,14 @@ def init_bot():
         logger.error("Please set your BOT_TOKEN in the .env file")
         return None
     
-    # Create application (job queue is enabled by default with [job-queue] extra)
-    application = Application.builder().token(config.BOT_TOKEN).build()
+    # Create application with explicit job queue configuration to fix weak reference error
+    application = Application.builder().token(config.BOT_TOKEN).job_queue(None).build()
+    
+    # Manually create and attach job queue to avoid weak reference issue
+    from telegram.ext import JobQueue
+    job_queue = JobQueue()
+    job_queue.set_application(application, auto_stop=False)
+    application.job_queue = job_queue
     
     # Ensure job queue is available
     if application.job_queue is None:
