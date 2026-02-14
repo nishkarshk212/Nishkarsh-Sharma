@@ -174,4 +174,4 @@ Edit `config.py` to customize:
 **Messages not deleting:**
 - Ensure the bot has "Delete messages" permission
 - Check if the timer is not set to "off"
-- Verify the bot is running without errors
+- Verify the bot is running without errors# Nishkarsh-Sharma
