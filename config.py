@@ -9,6 +9,10 @@ load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
+# Webhook configuration for Render deployment
+WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')  # Render will provide this
+PORT = int(os.getenv('PORT', 10000))  # Render sets this automatically
+
 # Logging configuration
 LOG_LEVEL = logging.DEBUG if DEBUG else logging.INFO
 logging.basicConfig(

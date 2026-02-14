@@ -1,12 +1,20 @@
-import asyncio
+import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 from datetime import datetime, timedelta
 import config
 import urllib.parse
+from flask import Flask, request, jsonify
 
+# Create Flask app for webhook handling
+app = Flask(__name__)
+
+# Configure logging
 logger = logging.getLogger(__name__)
+
+# Initialize bot application
+application = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send welcome message with instructions and add to group button"""
@@ -286,12 +294,14 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     """Log errors"""
     logger.error(f"Exception while handling update: {context.error}")
 
-def main() -> None:
-    """Start the bot"""
+def init_bot():
+    """Initialize the bot application"""
+    global application
+    
     # Check if bot token is set
     if not config.BOT_TOKEN or config.BOT_TOKEN == 'your_bot_token_here':
         logger.error("Please set your BOT_TOKEN in the .env file")
-        return
+        return None
     
     # Create application (job queue is enabled by default with [job-queue] extra)
     application = Application.builder().token(config.BOT_TOKEN).build()
@@ -299,7 +309,7 @@ def main() -> None:
     # Ensure job queue is available
     if application.job_queue is None:
         logger.error("Failed to initialize job queue. Message auto-deletion will not work.")
-        return
+        return None
     
     # Add handlers
     application.add_handler(CommandHandler("start", start))
@@ -312,11 +322,56 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL, handle_message))
     application.add_error_handler(error_handler)
     
-    logger.info("Bot started successfully!")
-    logger.info("Make sure to add the bot to your group and make it admin with delete permissions")
+    logger.info("Bot initialized successfully!")
+    return application
+
+# Flask routes for webhook handling
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({"status": "Bot is running", "timestamp": datetime.now().isoformat()})
+
+@app.route(f'/webhook/{config.BOT_TOKEN}', methods=['POST'])
+def webhook():
+    """Handle incoming webhook updates"""
+    if application is None:
+        return jsonify({"error": "Bot not initialized"}), 500
     
-    # Start the bot
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        application.update_queue.put_nowait(update)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/set_webhook', methods=['GET'])
+def set_webhook_route():
+    """Set webhook for the bot"""
+    if application is None:
+        return jsonify({"error": "Bot not initialized"}), 500
+    
+    try:
+        webhook_url = f"{config.WEBHOOK_URL}/webhook/{config.BOT_TOKEN}"
+        application.bot.set_webhook(url=webhook_url)
+        logger.info(f"Webhook set to: {webhook_url}")
+        return jsonify({"status": "Webhook set successfully", "url": webhook_url})
+    except Exception as e:
+        logger.error(f"Error setting webhook: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "bot_initialized": application is not None
+    })
 
 if __name__ == "__main__":
-    main()
+    # Initialize bot
+    init_bot()
+    
+    # Run Flask app
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
