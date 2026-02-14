@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 from datetime import datetime, timedelta
@@ -293,7 +294,7 @@ def main() -> None:
         logger.error("Please set your BOT_TOKEN in the .env file")
         return
     
-    # Create application (job queue is enabled by default with [job-queue] extra)
+    # Create application - fixing the attribute error by ensuring clean initialization
     application = Application.builder().token(config.BOT_TOKEN).build()
     
     # Ensure job queue is available
@@ -315,8 +316,20 @@ def main() -> None:
     logger.info("Bot started successfully!")
     logger.info("Make sure to add the bot to your group and make it admin with delete permissions")
     
-    # Start the bot
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Check if running in webhook mode (for deployments like Render)
+    if os.getenv('WEBHOOK_MODE', '').lower() == 'true':
+        # Run in webhook mode
+        logger.info("Starting bot in webhook mode...")
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=config.PORT,
+            url_path=config.BOT_TOKEN,
+            webhook_url=f"{config.WEBHOOK_URL}/{config.BOT_TOKEN}"
+        )
+    else:
+        # Run in polling mode (for local development)
+        logger.info("Starting bot in polling mode...")
+        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
