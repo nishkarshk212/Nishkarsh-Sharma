@@ -3,7 +3,7 @@ services:
     name: message-delete-bot
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "python web.py"
+    startCommand: "python run.py"
     envVars:
       - key: BOT_TOKEN
         sync: false
