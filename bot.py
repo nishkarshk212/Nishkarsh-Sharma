@@ -294,8 +294,14 @@ def main() -> None:
         logger.error("Please set your BOT_TOKEN in the .env file")
         return
     
-    # Create application - fixing the attribute error by ensuring clean initialization
-    application = Application.builder().token(config.BOT_TOKEN).build()
+    # Create application with explicit job queue configuration to fix weak reference error
+    application = Application.builder().token(config.BOT_TOKEN).job_queue(None).build()
+    
+    # Manually create and attach job queue to avoid weak reference issue
+    from telegram.ext import JobQueue
+    job_queue = JobQueue()
+    job_queue.set_application(application, auto_stop=False)
+    application.job_queue = job_queue
     
     # Ensure job queue is available
     if application.job_queue is None:
